@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Isabel Ribeiro Semijoias — Catálogo</title>
+  <meta name="description" content="Catálogo de semijoias Isabel Ribeiro">
+  <meta property="og:title" content="Isabel Ribeiro Semijoias">
+  <meta property="og:description" content="Veja as peças disponíveis no nosso catálogo">
+  <meta name="theme-color" content="#141414">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Cormorant+Garamond:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/app.css">
+  <style>
+    body { padding-bottom: 40px; }
+    .hero { background: #141414; text-align: center; padding: 34px 16px 26px; }
+    .hero .logo .l-name { font-size: clamp(2.2rem, 9vw, 3.2rem); }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 16px; }
+    .featured { display: grid; gap: 18px; margin-bottom: 26px; }
+    @media (min-width: 760px) { .featured { grid-template-columns: 1fr 1fr; align-items: start; } }
+    .gallery { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; border-radius: var(--radius); background: var(--surface-2); aspect-ratio: 1; }
+    .gallery img { flex: none; width: 100%; height: 100%; object-fit: cover; scroll-snap-align: start; }
+    .gallery .none { width: 100%; display: grid; place-items: center; font-size: 4rem; }
+    .dots { text-align: center; color: var(--muted); font-size: .8rem; margin-top: 6px; }
+    .featured h2 { font-family: var(--font-display); font-size: 2rem; font-weight: 600; }
+    .featured .price { font-size: 1.6rem; font-weight: 700; color: var(--gold); margin: 6px 0 12px; }
+    .featured p { white-space: pre-line; color: var(--muted); }
+    .pcard { cursor: pointer; }
+    .msg { text-align: center; padding: 60px 16px; color: var(--muted); }
+    footer.foot { text-align: center; color: var(--muted); font-size: .8rem; margin-top: 30px; }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="logo"><span class="l-name">isabel ribeiro</span><span class="l-sub">SEMIJOIAS</span></div>
+  </header>
+  <main class="wrap" id="app"><div class="msg"><span class="spinner"></span><p>Carregando o catálogo…</p></div></main>
+
+  <script src="js/config.js"></script>
+  <script>
+  (() => {
+    const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const money = v => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(+v || 0);
+    const params = new URLSearchParams(location.search);
+    const api = params.get('api') || window.LOJA_CONFIG?.apiUrl;
+    const app = document.getElementById('app');
+    let data, cat = '', current = params.get('p');
+
+    // Só aceita URLs do Google Apps Script (evita que um link adulterado carregue dados de outro site)
+    if (!api || !/^https:\/\/script\.google(usercontent)?\.com\//.test(api)) {
+      app.innerHTML = '<div class="msg">Catálogo não configurado.</div>';
+      return;
+    }
+
+    const waLink = p => {
+      const phone = (data.store.phone || '').replace(/\D/g, '');
+      const text = p ? `Olá! Tenho interesse na peça *${p.name}* (${money(p.price)}) que vi no catálogo. 💛` : 'Olá! Vi o catálogo e gostaria de mais informações. 💛';
+      return `https://wa.me/${phone ? (phone.length <= 11 ? '55' + phone : phone) : ''}?text=${encodeURIComponent(text)}`;
+    };
+
+    function render() {
+      const p = data.products.find(x => x.id === current);
+      const list = data.products.filter(x => (!cat || x.categoryId === cat) && x.id !== current);
+      const usedCats = data.categories.filter(c => data.products.some(x => x.categoryId === c.id));
+      app.innerHTML = `
+        ${p ? `<section class="featured">
+          <div><div class="gallery" id="gal">${p.photos.length ? p.photos.map((u, i) => `<img src="${esc(u)}" alt="${esc(p.name)} — foto ${i + 1}">`).join('') : '<div class="none">💎</div>'}</div>
+            ${p.photos.length > 1 ? `<div class="dots">Deslize para ver ${p.photos.length} fotos →</div>` : ''}</div>
+          <div>
+            <span class="badge gold">${esc(data.categories.find(c => c.id === p.categoryId)?.name || '')}</span>
+            <h2>${esc(p.name)}</h2>
+            <div class="price">${money(p.price)}</div>
+            ${p.description ? `<p>${esc(p.description)}</p>` : ''}
+            <a class="btn whats block" href="${waLink(p)}" target="_blank" rel="noopener" style="min-height:52px;margin-top:14px">Quero esta peça</a>
+          </div>
+        </section>
+        <div class="section-title"><h2>${p ? 'Veja também' : 'Nossas peças'}</h2></div>` : `<div class="section-title"><h2>Nossas peças</h2></div>`}
+        <div class="chips" role="group" aria-label="Categorias">
+          <button type="button" class="chip ${cat ? '' : 'active'}" data-cat="">Todas</button>
+          ${usedCats.map(c => `<button type="button" class="chip ${cat === c.id ? 'active' : ''}" data-cat="${esc(c.id)}">${esc(c.name)}</button>`).join('')}
+        </div>
+        ${list.length ? `<div class="pgrid">${list.map(x => `
+          <article class="pcard" data-id="${esc(x.id)}" tabindex="0" role="button" aria-label="Ver ${esc(x.name)}">
+            <div class="pimg">${x.photos[0] ? `<img src="${esc(x.photos[0])}" alt="" loading="lazy">` : '💎'}</div>
+            <div class="pbody"><span class="pname">${esc(x.name)}</span><span class="pprice">${money(x.price)}</span></div>
+          </article>`).join('')}</div>` : '<p class="msg">Nenhuma outra peça nesta categoria.</p>'}
+        <p style="text-align:center;margin-top:24px"><a class="btn whats" href="${waLink()}" target="_blank" rel="noopener">Falar no WhatsApp</a></p>
+        <footer class="foot">${esc(data.store.name)}${data.store.instagram ? ' · ' + esc(data.store.instagram) : ''}</footer>`;
+    }
+
+    app.addEventListener('click', e => {
+      const c = e.target.closest('[data-cat]');
+      if (c) { cat = c.dataset.cat; render(); return; }
+      const card = e.target.closest('.pcard');
+      if (card) { current = card.dataset.id; history.replaceState(null, '', '?' + new URLSearchParams({ ...Object.fromEntries(params), p: current })); render(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+    });
+    app.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.classList.contains('pcard')) e.target.click(); });
+
+    fetch(api + (api.includes('?') ? '&' : '?') + 'action=catalog')
+      .then(r => r.json())
+      .then(d => { if (!d.ok) throw new Error(d.error); data = d; document.title = d.store.name + ' — Catálogo'; render(); })
+      .catch(() => { app.innerHTML = '<div class="msg">Não foi possível carregar o catálogo agora. Tente novamente em instantes.</div>'; });
+  })();
+  </script>
+</body>
+</html>

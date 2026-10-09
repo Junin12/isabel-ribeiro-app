@@ -1,0 +1,14 @@
+{
+  "name": "Isabel Ribeiro Semijoias",
+  "short_name": "Isabel Ribeiro",
+  "description": "Gestão de vendas, estoque, clientes e revendedoras",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#141414",
+  "theme_color": "#141414",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Isabel Ribeiro Semijoias</title>
+  <meta name="theme-color" content="#141414">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Cormorant+Garamond:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <div class="shell">
+    <nav class="sidebar" aria-label="Menu principal">
+      <a class="brand logo" href="#/" aria-label="Isabel Ribeiro Semijoias — início">
+        <span class="l-name">isabel ribeiro</span>
+        <span class="l-sub">SEMIJOIAS</span>
+      </a>
+      <div id="side-links"></div>
+    </nav>
+
+    <div class="content">
+      <header class="topbar">
+        <button class="icon-btn" id="btn-back" type="button" aria-label="Voltar ao início" hidden></button>
+        <h1 id="page-title">Início</h1>
+        <span class="sync" id="sync-status" title="Status da sincronização"></span>
+        <a class="icon-btn" href="#/config" aria-label="Configurações" id="btn-config"></a>
+      </header>
+      <main id="view" tabindex="-1"></main>
+    </div>
+
+    <nav class="bottomnav" aria-label="Atalhos" id="bottom-nav"></nav>
+  </div>
+
+  <dialog id="dlg" aria-labelledby="dlg-title">
+    <form id="dlg-form" novalidate>
+      <header class="dlg-head">
+        <h2 id="dlg-title"></h2>
+        <button type="button" class="icon-btn" data-close aria-label="Fechar">✕</button>
+      </header>
+      <div class="dlg-body" id="dlg-body"></div>
+      <footer class="dlg-foot" id="dlg-foot"></footer>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/util.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/analytics.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/produtos.js"></script>
+  <script src="js/clientes.js"></script>
+  <script src="js/vendas.js"></script>
+  <script src="js/carteira.js"></script>
+  <script src="js/revendedoras.js"></script>
+  <script src="js/dashboard.js"></script>
+  <script src="js/relatorios.js"></script>
+  <script>App.start();</script>
+</body>
+</html>
