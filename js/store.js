@@ -134,7 +134,9 @@ const Store = {
   client(id) { return this.db.clients.find(c => c.id === id); },
   reseller(id) { return this.db.resellers.find(r => r.id === id); },
   sale(id) { return this.db.sales.find(s => s.id === id); },
-  clientName(id) { const c = this.client(id); return c ? `${c.firstName} ${c.lastName || ''}`.trim() : 'Cliente removido'; },
+  clientName(id) { if (!id) return 'Sem cliente'; const c = this.client(id); return c ? `${c.firstName} ${c.lastName || ''}`.trim() : 'Cliente removido'; },
+  // Nome mostrado na venda: cliente cadastrada ou o nome anotado na venda avulsa
+  saleClientName(s) { return s.clientId ? this.clientName(s.clientId) : (s.clientNote || 'Sem cliente'); },
   sellerName(id) { return id ? (this.reseller(id)?.name || 'Revendedora removida') : 'Venda direta'; },
 };
 

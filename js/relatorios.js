@@ -78,7 +78,7 @@ function buildReport(type, ref) {
     fileName: `relatorio-${type === 'month' ? 'mensal-' + range.from.slice(0, 7) : 'semanal-' + range.from}.pdf`,
     prods: [...byProduct(lines)].sort((a, b) => b.qty - a.qty || b.revenue - a.revenue).slice(0, 10),
     cats: byCategory(lines),
-    clients: byClient(lines).slice(0, 10),
+    clients: byClient(lines.filter(l => l.clientId)).slice(0, 10),
     sellers: byReseller(lines),
     best: bestDay(lines),
     bestWd: [...wd].sort((a, b) => b.revenue - a.revenue)[0],
@@ -212,7 +212,7 @@ function reportPdf(r) {
   table('Top compradoras', ['Cliente', 'Compras', 'Peças', 'Total'], r.clients.map(g => [g.label, g.count, g.qty, money(g.revenue)]));
   table('Vendas por dia da semana', ['Dia', 'Vendas', 'Peças', 'Faturamento'], [1, 2, 3, 4, 5, 6, 0].map(i => r.wd[i]).map(g => [g.label, g.count, g.qty, money(g.revenue)]));
   table('Revendedoras x venda direta', ['Vendedora', 'Vendas', 'Peças', 'Faturamento', 'Lucro', 'Comissão'], r.sellers.map(g => [g.label, g.count, g.qty, money(g.revenue), money(g.profit), money(g.commission)]));
-  table('Parcelas a receber (vencidas e próximos 30 dias)', ['Cliente', 'Parcela', 'Vencimento', 'Valor'], r.next30.slice(0, 40).map(({ sale, i }) => [Store.clientName(sale.clientId), `${i.n}/${sale.installments.length}`, fmtDate(i.dueDate) + (i.dueDate < todayISO() ? ' (atrasada)' : ''), money(i.amount)]));
+  table('Parcelas a receber (vencidas e próximos 30 dias)', ['Cliente', 'Parcela', 'Vencimento', 'Valor'], r.next30.slice(0, 40).map(({ sale, i }) => [Store.saleClientName(sale), `${i.n}/${sale.installments.length}`, fmtDate(i.dueDate) + (i.dueDate < todayISO() ? ' (atrasada)' : ''), money(i.amount)]));
 
   if (y > 260) { doc.addPage(); y = 18; }
   doc.setFontSize(9); doc.setTextColor(...MUTED);

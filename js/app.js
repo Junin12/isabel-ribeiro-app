@@ -138,9 +138,9 @@ function saleItem(s) {
   const st = saleStatus(s);
   const pieces = s.items.reduce((a, i) => a + i.qty, 0);
   return html`<button class="item" type="button" data-act="open-sale" data-id="${s.id}">
-    <span class="avatar ${s.resellerId ? 'gold' : ''}">${initials(Store.clientName(s.clientId))}</span>
+    <span class="avatar ${s.resellerId ? 'gold' : ''}">${initials(Store.saleClientName(s))}</span>
     <span class="i-main">
-      <span class="i-title">${Store.clientName(s.clientId)}</span>
+      <span class="i-title">${Store.saleClientName(s)}</span>
       <span class="i-sub">${fmtDate(s.date)} · ${pieces} peça(s) · ${Store.sellerName(s.resellerId)}</span>
     </span>
     <span class="i-end"><b>${money(s.total)}</b><span class="badge ${st.cls}">${st.label}</span></span>

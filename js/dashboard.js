@@ -67,12 +67,12 @@ Views.dashboard = {
     const w = walletStats(db.sales, range, f.resellerId);
 
     // chips de filtros ativos
-    const names = { clientId: id => Store.clientName(id), productId: id => Store.product(id)?.name, categoryId: id => Store.category(id)?.name, resellerId: id => Store.sellerName(id === 'direct' ? null : id) };
+    const names = { clientId: id => Store.clientName(id), productId: id => id === 'avulsa' ? 'Vendas avulsas' : Store.product(id)?.name, categoryId: id => Store.category(id)?.name, resellerId: id => Store.sellerName(id === 'direct' ? null : id) };
     const active = Object.keys(names).filter(k => f[k]);
     $('#df-active').innerHTML = String(html`${active.map(k => html`<button type="button" class="chip active" data-act="clear" data-k="${k}">${names[k](f[k])} ✕</button>`)}
       ${active.length ? html`<button type="button" class="chip" data-act="clear-all">Limpar filtros</button>` : ''}`);
 
-    const prods = byProduct(lines), cats = byCategory(lines), clients = byClient(lines), sellers = byReseller(lines);
+    const prods = byProduct(lines), cats = byCategory(lines), clients = byClient(lines.filter(l => l.clientId)), sellers = byReseller(lines);
     const wd = byWeekday(lines), best = bestDay(lines);
     const bestWd = [...wd].sort((a, b) => b.revenue - a.revenue)[0];
     const stockCost = db.products.reduce((a, x) => a + (+x.stock || 0) * (+x.cost || 0), 0);

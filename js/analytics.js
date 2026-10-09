@@ -100,7 +100,7 @@ function filterLines(lines, f = {}) {
   return lines.filter(l =>
     (!f.range || inRange(l.date, f.range)) &&
     (!f.clientId || l.clientId === f.clientId) &&
-    (!f.productId || l.productId === f.productId) &&
+    (!f.productId || (l.productId || 'avulsa') === f.productId) &&
     (!f.categoryId || l.categoryId === f.categoryId) &&
     (!f.resellerId || (f.resellerId === 'direct' ? !l.resellerId : l.resellerId === f.resellerId)));
 }
@@ -130,7 +130,7 @@ function groupLines(lines, keyFn, labelFn) {
   return [...m.values()].map(g => ({ ...g, count: g.sales.size })).sort((a, b) => b.revenue - a.revenue);
 }
 
-const byProduct = lines => groupLines(lines, l => l.productId, (k, l) => Store.product(k)?.name || l.name);
+const byProduct = lines => groupLines(lines, l => l.productId || 'avulsa', (k, l) => k === 'avulsa' ? 'Vendas avulsas' : Store.product(k)?.name || l.name);
 const byCategory = lines => groupLines(lines, l => l.categoryId || '-', k => Store.category(k)?.name || 'Sem categoria');
 const byClient = lines => groupLines(lines, l => l.clientId, k => Store.clientName(k));
 const byReseller = lines => groupLines(lines, l => l.resellerId, k => Store.sellerName(k));

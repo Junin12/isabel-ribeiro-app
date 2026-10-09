@@ -81,6 +81,7 @@ No seu Drive vai aparecer a pasta **Isabel Ribeiro - App**, com:
 
 ## Primeiros passos no app
 
+0. **Vendas antigas do caderninho:** em **Vender**, use a aba **Venda avulsa**. Basta informar o valor, a data e as parcelas, sem precisar cadastrar cliente nem produto (o estoque não é alterado). Depois, se quiser, edite a venda para ligar a uma cliente cadastrada.
 1. **Produtos → + Categoria**: crie as categorias (Brincos, Colares, Anéis, Pulseiras…).
 2. **Produtos → Novo produto**: fotos, nome, descrição, estoque, preço de venda e valor investido. O lucro aparece na hora.
 3. **Clientes → Novo cliente** (ou cadastre direto na tela de venda, botão **+ Nova**).

@@ -46,9 +46,9 @@ Views.carteira = {
       const c = Store.client(s.clientId);
       const late = !i.paidAt && i.dueDate < today;
       return html`<div class="item wrap" style="cursor:default">
-        <span class="avatar ${late ? '' : 'gold'}">${initials(Store.clientName(s.clientId))}</span>
+        <span class="avatar ${late ? '' : 'gold'}">${initials(Store.saleClientName(s))}</span>
         <span class="i-main">
-          <span class="i-title">${Store.clientName(s.clientId)}</span>
+          <span class="i-title">${Store.saleClientName(s)}</span>
           <span class="i-sub">Parcela ${i.n}/${s.installments.length} · ${i.paidAt ? `recebida ${fmtDate(i.paidAt)}` : `vence ${fmtDate(i.dueDate)}`}</span>
         </span>
         <span class="i-end"><b>${money(i.amount)}</b>${late ? html`<span class="badge bad">Atrasada</span>` : ''}</span>

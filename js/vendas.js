@@ -3,6 +3,7 @@
 // Baixa (sign = 1) ou devolve (sign = -1) o estoque de uma venda
 function applyStock(sale, sign) {
   for (const it of sale.items) {
+    if (!it.productId) continue; // venda avulsa não mexe no estoque
     if (sale.resellerId) {
       const r = Store.reseller(sale.resellerId);
       if (r) r.stock[it.productId] = (+r.stock[it.productId] || 0) - sign * it.qty;
@@ -28,11 +29,10 @@ function saleReceipt(s) {
 
 Views.vendas = {
   title: 'Vendas',
-  f: { month: '', seller: '', status: '', q: '' },
+  f: { month: 'all', seller: '', status: '', q: '' },
 
   render() {
     const db = Store.db;
-    if (!this.f.month && db.sales.length) this.f.month = todayISO().slice(0, 7);
     const months = [...new Set([todayISO().slice(0, 7), ...db.sales.map(s => s.date.slice(0, 7))])].sort().reverse();
     return html`
       <div class="toolbar">
@@ -61,7 +61,7 @@ Views.vendas = {
       (f.month === 'all' || !f.month || s.date.startsWith(f.month)) &&
       (!f.seller || (f.seller === 'direct' ? !s.resellerId : s.resellerId === f.seller)) &&
       (!f.status || saleStatus(s).key === f.status) &&
-      (!q || normalize(Store.clientName(s.clientId)).includes(q))
+      (!q || normalize(Store.saleClientName(s)).includes(q))
     ).sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
     if (!list.length) return html`<div class="card empty"><div class="big">🛍️</div>Nenhuma venda encontrada.</div>`;
     const tot = list.reduce((a, s) => ({ total: a.total + s.total, profit: a.profit + s.profit }), { total: 0, profit: 0 });
@@ -92,7 +92,7 @@ Views.vendas = {
     if (c?.phone) actions.unshift({ id: 'wa', label: 'Enviar à cliente', icon: 'whats', cls: 'whats', run: () => openWhatsApp(saleReceipt(s), c.phone) });
 
     Modal.open({
-      title: `Venda — ${Store.clientName(s.clientId)}`,
+      title: `Venda — ${Store.saleClientName(s)}`,
       hideSubmit: true,
       actions,
       body: html`
@@ -139,9 +139,14 @@ Views['venda-form'] = {
     const orig = editId ? Store.sale(editId) : null;
     if (editId && !orig) return html`<div class="card empty">Venda não encontrada.</div>`;
     const qty = {}, snap = {};
-    orig?.items.forEach(i => { qty[i.productId] = i.qty; snap[i.productId] = i; });
+    orig?.items.forEach(i => { if (i.productId) { qty[i.productId] = i.qty; snap[i.productId] = i; } });
+    // Venda avulsa = venda antiga do caderninho, sem produto cadastrado (item com productId nulo)
+    const manual = orig?.items.find(i => !i.productId);
     this.d = {
       orig, qty, snap, cat: '', q: '',
+      mode: manual || (!orig && !db.products.length) ? 'manual' : 'items',
+      manual: { desc: manual?.name || '', amount: manual?.price || 0, cost: manual?.cost || 0 },
+      clientNote: orig?.clientNote || '',
       date: orig?.date || todayISO(),
       clientId: orig?.clientId || '',
       resellerId: orig?.resellerId || this.preseller || '',
@@ -152,8 +157,7 @@ Views['venda-form'] = {
       notes: orig?.notes || '',
     };
     this.preseller = null;
-    const d = this.d;
-    if (!db.products.length) return html`<div class="card empty"><div class="big">💎</div>Cadastre produtos antes de registrar vendas.<br><br><a class="btn primary" href="#/produtos">Ir para Produtos</a></div>`;
+    const d = this.d, manualMode = d.mode === 'manual';
 
     return html`
       <div class="sale-layout">
@@ -168,19 +172,38 @@ Views['venda-form'] = {
                 </select></div>
               <div class="field"><label for="s-date">Data da venda</label><input id="s-date" type="date" value="${d.date}" required></div>
             </div>
-            <div class="field"><label for="s-client">Para qual cliente? <span class="req">*</span></label>
+            <div class="field"><label for="s-client">Para qual cliente? <span class="req" id="s-client-req" ${manualMode ? 'hidden' : ''}>*</span></label>
               <div class="row"><select id="s-client" class="grow" style="flex:1">${this.clientOptions()}</select>
                 <button class="btn" type="button" data-act="new-client">${icon('plus')} Nova</button></div></div>
+            <div class="field" id="s-note-wrap" ${manualMode && !d.clientId ? '' : 'hidden'}>
+              <label for="s-clientnote">Ou só anote o nome (opcional)</label>
+              <input id="s-clientnote" type="text" value="${d.clientNote}" placeholder="Ex.: Maria da academia">
+              <span class="hint">Pode deixar em branco. Depois é só editar a venda e escolher a cliente cadastrada.</span>
+            </div>
           </section>
 
           <section class="card">
-            <h3>2. Peças vendidas</h3>
-            <div class="chips" role="group" aria-label="Filtrar por categoria">
-              <button type="button" class="chip active" data-act="cat" data-id="">Todas</button>
-              ${db.categories.map(c => html`<button type="button" class="chip" data-act="cat" data-id="${c.id}">${c.name}</button>`)}
+            <h3>2. O que foi vendido</h3>
+            <div class="tabs" role="tablist">
+              <button type="button" role="tab" class="${manualMode ? '' : 'active'}" aria-selected="${!manualMode}" data-act="mode" data-id="items">Peças do estoque</button>
+              <button type="button" role="tab" class="${manualMode ? 'active' : ''}" aria-selected="${manualMode}" data-act="mode" data-id="manual">Venda avulsa</button>
             </div>
-            <input type="search" id="s-q" placeholder="Buscar peça…" aria-label="Buscar peça" style="margin-bottom:10px">
-            <div class="list" id="s-picks"></div>
+            <div id="s-items-box" ${manualMode ? 'hidden' : ''}>
+              <div class="chips" role="group" aria-label="Filtrar por categoria">
+                <button type="button" class="chip active" data-act="cat" data-id="">Todas</button>
+                ${db.categories.map(c => html`<button type="button" class="chip" data-act="cat" data-id="${c.id}">${c.name}</button>`)}
+              </div>
+              <input type="search" id="s-q" placeholder="Buscar peça…" aria-label="Buscar peça" style="margin-bottom:10px">
+              <div class="list" id="s-picks"></div>
+            </div>
+            <div id="s-manual-box" ${manualMode ? '' : 'hidden'}>
+              <p class="small muted" style="margin-top:0">Para passar as vendas do caderninho: não precisa de cliente nem de produto cadastrado, e o estoque não é alterado.</p>
+              <div class="field"><label for="s-mdesc">O que foi vendido</label><input id="s-mdesc" type="text" value="${d.manual.desc}" placeholder="Ex.: 2 brincos e 1 colar"></div>
+              <div class="grid2">
+                <div class="field"><label for="s-mamount">Valor da venda (R$) <span class="req">*</span></label><input id="s-mamount" type="number" min="0" step="0.01" inputmode="decimal" value="${d.manual.amount || ''}" placeholder="0,00"></div>
+                <div class="field"><label for="s-mcost">Valor investido (R$)</label><input id="s-mcost" type="number" min="0" step="0.01" inputmode="decimal" value="${d.manual.cost || ''}" placeholder="0,00"><span class="hint">Quanto custaram as peças. Se não souber, deixe vazio (o lucro vai ficar igual ao valor da venda).</span></div>
+              </div>
+            </div>
           </section>
 
           <section class="card">
@@ -233,6 +256,10 @@ Views['venda-form'] = {
   // Itens no formato gravado na venda (preço/custo congelados)
   items() {
     const d = this.d;
+    if (d.mode === 'manual') {
+      const m = d.manual;
+      return m.amount > 0 ? [{ productId: null, name: m.desc.trim() || 'Venda avulsa', categoryId: null, qty: 1, price: round2(m.amount), cost: round2(m.cost) }] : [];
+    }
     return Object.entries(d.qty).filter(([, q]) => q > 0).map(([pid, q]) => {
       const p = Store.product(pid), s = d.snap[pid];
       return { productId: pid, name: p?.name || s?.name, categoryId: p?.categoryId || s?.categoryId, qty: q, price: s ? s.price : +p.price || 0, cost: s ? s.cost : +p.cost || 0 };
@@ -263,7 +290,7 @@ Views['venda-form'] = {
           <button type="button" data-act="qty" data-id="${p.id}" data-d="1" aria-label="Aumentar ${p.name}" ${n >= av ? 'disabled' : ''}>+</button>
         </span>
       </div>`;
-    })}`) : `<p class="muted small">${d.resellerId ? 'Esta revendedora não tem peças em estoque. Envie peças para ela em Revendedoras.' : 'Nenhuma peça disponível em estoque.'}</p>`;
+    })}`) : `<p class="muted small">${d.resellerId ? 'Esta revendedora não tem peças em estoque. Envie peças para ela em Revendedoras.' : 'Nenhuma peça disponível em estoque. Para registrar uma venda do caderninho, use a aba "Venda avulsa".'}</p>`;
   },
 
   regen() {
@@ -298,7 +325,7 @@ Views['venda-form'] = {
     const s = this.calc();
     $('#s-summary').innerHTML = String(html`
       ${s.items.length ? html`<table class="tbl"><tbody>${s.items.map(i => html`<tr><td>${i.qty}× ${i.name}</td><td class="num">${money(i.qty * i.price)}</td></tr>`)}</tbody></table>`
-        : html`<p class="muted small">Nenhuma peça selecionada.</p>`}
+        : html`<p class="muted small">${this.d.mode === 'manual' ? 'Informe o valor da venda.' : 'Nenhuma peça selecionada.'}</p>`}
       <div style="margin-top:10px">
         <div class="sum-line"><span>Subtotal</span><span>${money(s.subtotal)}</span></div>
         ${s.discount ? html`<div class="sum-line"><span>Desconto</span><span>−${money(s.discount)}</span></div>` : ''}
@@ -317,6 +344,10 @@ Views['venda-form'] = {
     if (t.id === 's-q') { d.q = t.value; this.renderPicks(); }
     else if (t.id === 's-discount') { d.discount = +t.value || 0; this.totalChanged(); }
     else if (t.id === 's-notes') d.notes = t.value;
+    else if (t.id === 's-clientnote') d.clientNote = t.value;
+    else if (t.id === 's-mdesc') { d.manual.desc = t.value; this.renderSummary(); }
+    else if (t.id === 's-mamount') { d.manual.amount = +t.value || 0; this.totalChanged(); }
+    else if (t.id === 's-mcost') { d.manual.cost = +t.value || 0; this.renderSummary(); }
     else if (t.dataset.instAmt) { d.installments[+t.dataset.instAmt].amount = round2(t.value); this.checkInst(); }
   },
 
@@ -327,7 +358,7 @@ Views['venda-form'] = {
       // mantém só as quantidades que a nova vendedora tem em estoque
       for (const pid of Object.keys(d.qty)) d.qty[pid] = Math.min(d.qty[pid], this.available(pid));
       this.renderPicks(); this.totalChanged();
-    } else if (t.id === 's-client') d.clientId = t.value;
+    } else if (t.id === 's-client') { d.clientId = t.value; this.syncMode(); }
     else if (t.id === 's-date') { d.date = t.value; if (d.count === 1) { d.firstDate = t.value; $('#s-first').value = t.value; this.regen(); } }
     else if (t.id === 's-count') { d.count = +t.value; this.regen(); }
     else if (t.id === 's-first') { d.firstDate = t.value || todayISO(); this.regen(); }
@@ -335,7 +366,22 @@ Views['venda-form'] = {
     else if (t.dataset.instPaid) { const i = d.installments[+t.dataset.instPaid]; i.paidAt = t.checked ? (i.dueDate <= todayISO() ? i.dueDate : todayISO()) : null; }
   },
 
+  // Mostra/esconde os campos de cada modo sem redesenhar o formulário
+  syncMode() {
+    const d = this.d, manual = d.mode === 'manual';
+    $('#s-items-box').hidden = manual;
+    $('#s-manual-box').hidden = !manual;
+    $('#s-client-req').hidden = manual;
+    $('#s-note-wrap').hidden = !manual || !!d.clientId;
+    $$('[data-act=mode]').forEach(b => { const on = b.dataset.id === d.mode; b.classList.toggle('active', on); b.setAttribute('aria-selected', on); });
+  },
+
   actions: {
+    mode(el) {
+      const v = Views['venda-form'];
+      v.d.mode = el.dataset.id;
+      v.syncMode(); v.totalChanged();
+    },
     cat(el) {
       const v = Views['venda-form'];
       v.d.cat = el.dataset.id;
@@ -353,16 +399,18 @@ Views['venda-form'] = {
     },
     save() {
       const v = Views['venda-form'], d = v.d, db = Store.db;
-      if (!d.clientId) { toast('Escolha a cliente'); $('#s-client').focus(); return; }
+      const manual = d.mode === 'manual';
+      if (!manual && !d.clientId) { toast('Escolha a cliente'); $('#s-client').focus(); return; }
       const sale = v.calc();
-      if (!sale.items.length) { toast('Selecione ao menos uma peça'); return; }
-      if (sale.items.some(i => i.qty > v.available(i.productId))) { toast('Quantidade maior que o estoque disponível'); return; }
+      if (!sale.items.length) { toast(manual ? 'Informe o valor da venda' : 'Selecione ao menos uma peça'); return; }
+      if (!manual && sale.items.some(i => i.qty > v.available(i.productId))) { toast('Quantidade maior que o estoque disponível'); return; }
       if (!v.checkInst()) { toast('Ajuste o valor das parcelas'); return; }
       if (d.installments.some(i => !i.dueDate)) { toast('Preencha a data de todas as parcelas'); return; }
 
       Object.assign(sale, {
         id: d.orig?.id || uid(), createdAt: d.orig?.createdAt || Date.now(),
         date: d.date || todayISO(), clientId: d.clientId, notes: d.notes.trim(),
+        clientNote: d.clientId ? '' : d.clientNote.trim(),
         commissionPaid: d.orig?.commissionPaid && d.orig.resellerId === sale.resellerId ? d.orig.commissionPaid : false,
         installments: d.installments.map((i, k) => ({ n: k + 1, dueDate: i.dueDate, amount: round2(i.amount), paidAt: i.paidAt || null })),
       });
