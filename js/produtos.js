@@ -119,7 +119,8 @@ function productForm(p) {
   const removed = [];
 
   const photosHtml = () => html`${photos.map((u, i) => html`<div class="photo"><img src="${u}" alt="Foto ${i + 1}"><button type="button" data-rm-photo="${i}" aria-label="Remover foto ${i + 1}">✕</button></div>`)}
-    <label class="photo-add">${icon('image')}<span>Adicionar<br>fotos</span><input type="file" id="f-photos" accept="image/*" multiple></label>`;
+    <label class="photo-add">${icon('camera')}<span>Tirar<br>foto</span><input type="file" data-photo-input accept="image/*" capture="environment"></label>
+    <label class="photo-add">${icon('image')}<span>Da<br>galeria</span><input type="file" data-photo-input accept="image/*" multiple></label>`;
 
   const actions = [];
   if (!isNew) {
@@ -180,9 +181,9 @@ function productForm(p) {
         list.innerHTML = String(photosHtml());
       };
       list.onchange = async e => {
-        if (e.target.id !== 'f-photos') return;
+        if (!e.target.matches('[data-photo-input]') || !e.target.files.length) return;
         const files = [...e.target.files].slice(0, 8);
-        list.querySelector('.photo-add').innerHTML = '<span class="spinner"></span>';
+        list.querySelectorAll('.photo-add').forEach((el, i) => { if (i) el.remove(); else el.innerHTML = '<span class="spinner"></span>'; });
         for (const f of files) {
           try { photos.push(await Store.addPhoto(f)); } catch (err) { toast('Erro ao enviar foto: ' + err.message, 4000); }
         }
