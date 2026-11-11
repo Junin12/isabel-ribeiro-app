@@ -42,6 +42,8 @@
   <script>
   (() => {
     const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    // Na grade a foto do Drive vem pequena (carrega bem mais rápido no celular); a grande fica para a página da peça.
+    const miniatura = u => String(u).replace(/([?&]sz=)w\d+/, '$1w480');
     const money = v => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(+v || 0);
     const params = new URLSearchParams(location.search);
     const api = params.get('api') || window.LOJA_CONFIG?.apiUrl;
@@ -83,7 +85,7 @@
         </div>
         ${list.length ? `<div class="pgrid">${list.map(x => `
           <article class="pcard" data-id="${esc(x.id)}" tabindex="0" role="button" aria-label="Ver ${esc(x.name)}">
-            <div class="pimg">${x.photos[0] ? `<img src="${esc(x.photos[0])}" alt="" loading="lazy">` : '💎'}</div>
+            <div class="pimg">${x.photos[0] ? `<img src="${esc(miniatura(x.photos[0]))}" alt="" loading="lazy" decoding="async">` : '💎'}</div>
             <div class="pbody"><span class="pname">${esc(x.name)}</span><span class="pprice">${money(x.price)}</span></div>
           </article>`).join('')}</div>` : '<p class="msg">Nenhuma outra peça nesta categoria.</p>'}
         <p style="text-align:center;margin-top:24px"><a class="btn whats" href="${waLink()}" target="_blank" rel="noopener">Falar no WhatsApp</a></p>

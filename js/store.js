@@ -4,7 +4,8 @@
  *   alguns segundos depois de cada alteração e baixa a versão do Drive ao abrir o app.
  * dev-senior: o banco é um único JSON; para uma loja pequena (milhares de vendas) é suficiente.
  */
-const LS_DB = 'ir.db', LS_CFG = 'ir.cfg', LS_DIRTY = 'ir.dirty';
+const LS_DB = 'ir.db', LS_CFG = 'ir.cfg', LS_DIRTY = 'ir.dirty', LS_BASE = 'ir.base';
+const LISTAS = ['categories', 'products', 'clients', 'resellers', 'stockMoves', 'sales'];
 
 const emptyDb = () => ({
   version: 1,
@@ -61,6 +62,16 @@ const Store = {
     }
   },
 
+  // Última versão igual à do Drive (base para juntar as alterações de dois aparelhos)
+  base() {
+    if (this._base === undefined) { try { this._base = JSON.parse(localStorage.getItem(LS_BASE) || 'null'); } catch { this._base = null; } }
+    return this._base;
+  },
+  setBase(db) {
+    this._base = JSON.parse(JSON.stringify(db));
+    try { localStorage.setItem(LS_BASE, JSON.stringify(db)); } catch { /* sem espaço: a próxima sincronização junta sem base */ }
+  },
+
   writeLocal() {
     try {
       localStorage.setItem(LS_DB, JSON.stringify(this.db));
@@ -91,7 +102,7 @@ const Store = {
     try {
       this.setStatus('saving');
       const { data } = await this.api('load');
-      if (data) { this.db = fixDb(data); this.writeLocal(); }
+      if (data) { this.db = fixDb(data); this.writeLocal(); this.setBase(this.db); }
       else await this.push(true); // Drive vazio: sobe o que existe no aparelho
       this.setStatus('ok');
       this.listeners.forEach(fn => fn('data'));
@@ -105,7 +116,17 @@ const Store = {
     if (!this.remote || (!this.dirty && !force)) return;
     try {
       this.setStatus('saving');
+      // Outro aparelho pode ter salvo depois da última sincronização deste: junta as duas versões antes de enviar,
+      // senão o banco inteiro deste aparelho apagaria as vendas/cadastros feitos no outro.
+      const { data: server } = await this.api('load');
+      if (server && (+server.updatedAt || 0) !== (+this.base()?.updatedAt || 0)) {
+        this.db = fixDb(mergeDb(this.base(), this.db, fixDb(server)));
+        this.db.updatedAt = Date.now();
+        this.writeLocal();
+        this.listeners.forEach(fn => fn('data'));
+      }
       await this.api('save', { data: this.db });
+      this.setBase(this.db);
       this.dirty = false;
       localStorage.removeItem(LS_DIRTY);
       this.setStatus('ok');
@@ -144,9 +165,53 @@ const Store = {
 function fixDb(d) {
   const base = emptyDb();
   const out = { ...base, ...d, settings: { ...base.settings, ...(d.settings || {}) } };
-  for (const k of ['categories', 'products', 'clients', 'resellers', 'stockMoves', 'sales']) if (!Array.isArray(out[k])) out[k] = [];
+  for (const k of LISTAS) if (!Array.isArray(out[k])) out[k] = [];
   out.resellers.forEach(r => { r.stock ||= {}; });
   return out;
+}
+
+/* Junta três versões do banco, item por item (pelo id):
+ * base = como estava na última sincronização deste aparelho; local = este aparelho; server = o que está no Drive.
+ * Item mexido só de um lado → fica a versão de quem mexeu. Mexido dos dois lados → fica a deste aparelho.
+ * Itens novos dos dois lados entram; item apagado de um lado e intocado do outro sai. Sem base: junta tudo. */
+function mergeDb(base, local, server) {
+  const igual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const out = { ...server, ...local };
+  out.settings = base && igual(local.settings, base.settings) ? server.settings : local.settings;
+  for (const k of LISTAS) {
+    const B = new Map(((base && base[k]) || []).map(x => [x.id, x]));
+    const L = new Map((local[k] || []).map(x => [x.id, x]));
+    const S = new Map((server[k] || []).map(x => [x.id, x]));
+    const lista = [];
+    for (const id of new Set([...L.keys(), ...S.keys(), ...B.keys()])) {
+      const b = B.get(id), l = L.get(id), s = S.get(id);
+      const mudouL = !base || !igual(l, b), mudouS = !base || !igual(s, b);
+      let v;
+      if (l && s) {
+        v = mudouL ? l : s;
+        // Estoque é contador: se os dois aparelhos venderam/devolveram, soma as duas diferenças.
+        if (b && mudouL && mudouS) v = juntarEstoque(k, b, l, s);
+      }
+      else if (l) v = b && !mudouL ? undefined : l;       // sumiu no Drive: só fica se este aparelho mexeu
+      else if (s) v = b && !mudouS ? undefined : s;       // sumiu aqui: só volta se o outro aparelho mexeu
+      if (v) lista.push(v);
+    }
+    out[k] = lista;
+  }
+  return out;
+}
+
+function juntarEstoque(k, b, l, s) {
+  const soma = (bv, lv, sv) => (+lv || 0) + (+sv || 0) - (+bv || 0);
+  if (k === 'products') return { ...l, stock: soma(b.stock, l.stock, s.stock) };
+  if (k === 'resellers') {
+    const stock = {};
+    for (const pid of new Set([...Object.keys(b.stock || {}), ...Object.keys(l.stock || {}), ...Object.keys(s.stock || {})])) {
+      stock[pid] = soma((b.stock || {})[pid], (l.stock || {})[pid], (s.stock || {})[pid]);
+    }
+    return { ...l, stock };
+  }
+  return l;
 }
 
 window.addEventListener('online', () => Store.dirty ? Store.push() : Store.pull());

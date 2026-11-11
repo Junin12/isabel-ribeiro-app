@@ -1,6 +1,6 @@
 // Service worker simples: sempre tenta a internet primeiro (pega atualizações do GitHub)
 // e usa a cópia salva quando estiver offline.
-const CACHE = 'isabel-ribeiro-v1';
+const CACHE = 'isabel-ribeiro-v2';
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
