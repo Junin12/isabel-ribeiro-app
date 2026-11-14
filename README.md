@@ -114,3 +114,15 @@ js/analytics.js     regras de cálculo (lucro, parcelas, carteira, rankings)
 js/*.js             uma tela por arquivo
 apps-script/Code.gs backend no Google Drive
 ```
+
+<!-- manutencao:inicio -->
+## Manutenção (resumo)
+
+> Resumo para manter o app. Atualizado em 14/11/2026. Visão de todos os apps: https://wiapps.com.br/documentacao/ (com senha).
+
+- **O que faz:** Gestão da loja de semijoias: produtos, clientes, vendas, carteira, relatórios e revendedoras.
+- **No ar:** https://junin12.github.io/isabel-ribeiro-app/ · Cópia no wiapps: https://wiapps.com.br/isabel-ribeiro-app/
+- **Rodar no PC:** Abrir index.html.
+- **Publicar:** GitHub Pages; cópia no cPanel pelo wiapps-site.
+- **Chaves e senhas:** URL do Apps Script em `js/config.js`. A **chave secreta** do banco aparece no Registro de execução do Apps Script e é colada em Configurações em cada aparelho (fica só no aparelho). Nunca coloque o valor de uma chave neste arquivo.
+<!-- manutencao:fim -->
